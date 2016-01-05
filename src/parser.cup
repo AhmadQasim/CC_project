@@ -1,0 +1,126 @@
+import java_cup.runtime.ComplexSymbolFactory;
+import java_cup.runtime.Symbol;
+
+parser code {:
+    // Connect this parser to a scanner!
+    scanner s;
+    ParserCup(scanner s){ this.symbolFactory=new ComplexSymbolFactory();this.s=s; }
+    
+    
+	public void report_error(String message, Object info) { 
+         report_fatal_error(message, (Symbol)info); 
+    } 
+    public void report_fatal_error(String message, Symbol info) {
+    	 
+         System.err.println("--- Error ---" ); 
+         System.err.println("Syntax error at line "+ info.left +" and column "+ info.right +" of the input");
+         System.err.println("Expected something else but found: "+ info.value);
+         System.exit(0); 
+    }
+    
+:}
+
+action code {:
+public static final int EE = 17;
+  public static final int TIMES = 14;
+  public static final int MOD = 16;
+  public static final int AND = 24;
+  public static final int INPUT = 6;
+  public static final int LT = 21;
+  public static final int NE = 18;
+  public static final int ELSE = 8;
+  public static final int PLUS = 12;
+  public static final int RPAREN = 27;
+  public static final int OR = 25;
+  public static final int THEN = 9;
+  public static final int WHILE = 11;
+  public static final int NOT = 23;
+  public static final int END = 3;
+  public static final int TRUE = 30;
+  public static final int VARIABLE = 29;
+  public static final int IF = 4;
+  public static final int LPAREN = 28;
+  public static final int GT = 22;
+  public static final int LE = 20;
+  public static final int BEGIN = 2;
+  public static final int DO = 10;
+  public static final int NUMBER = 32;
+  public static final int EOF = 0;
+  public static final int DIVIDE = 15;
+  public static final int FALSE = 31;
+  public static final int GE = 19;
+  public static final int MINUS = 13;
+  public static final int error = 1;
+  public static final int ASSIGN = 26;
+  public static final int OUTPUT = 7;
+  public static final int VAR = 5;
+  public static final int UMINUS = 33;
+  :}
+
+/* define how to connect to the scanner! */
+init with {: :};
+scan with {: return s.next_token(); :};
+
+/* Terminals (tokens returned by the scanner). */
+terminal           BEGIN, END, IF, VAR, INPUT, OUTPUT, ELSE, THEN, DO, WHILE;
+terminal           PLUS, MINUS, TIMES, DIVIDE, MOD, EE, NE, GE, LE, LT, GT, NOT,AND, OR, ASSIGN;
+terminal           RPAREN, LPAREN;
+terminal           VARIABLE, TRUE,FALSE;
+terminal           NUMBER,UMINUS;
+
+/* Non terminals */
+non terminal			prog;
+non terminal            stmt;
+non terminal            expr, stmts;      // used to store evaluated subexpressions
+non terminal			block;
+
+/* Precedences */
+precedence left ASSIGN;
+precedence left GT,GE,LT,LE,EE,NE, AND, OR;
+precedence left MOD;
+precedence left PLUS, MINUS, ELSE;
+precedence left TIMES, DIVIDE;
+precedence left IF,WHILE,OUTPUT,INPUT,VAR;
+precedence left LPAREN, RPAREN;
+
+start with prog;
+
+/* The grammar rules */
+prog		::=		BEGIN stmts:s1 END {:RESULT = new Program().setmStmts((Statements)s1);:}	
+			;
+stmts		::=		stmt:s stmts:s1 {:((Statements)s1).mStatements.add((Statement)s);RESULT=s1;:}
+			|	{:RESULT = new Statements();:}
+			;
+stmt		::=		expr:e {:RESULT = new Statement().exprstmt((Expression)e,100);:}
+			|		IF expr:e THEN block:b	{:RESULT = new Statement().ifstmt((Expression)e,(Block)b,IF);:}
+			|		IF expr:e	THEN block:b1 ELSE block:b2 {:RESULT = new Statement().ifelsestmt((Expression)e,(Block)b1,(Block)b2,ELSE);:}
+			|		WHILE expr:e DO block:b {:RESULT = new Statement().whilestmt((Expression)e,(Block)b,WHILE);:}
+			|		OUTPUT expr:e	{:RESULT = new Statement().outputstmt((Expression)e,OUTPUT);:}
+			|		INPUT VARIABLE:v {:RESULT = new Statement().inputstmt((String)v,INPUT);:}
+			|		VAR VARIABLE:v {:RESULT = new Statement().varstmt((String)v,VAR);:}
+			;
+block	::=		stmt:s {:RESULT=new Block().setmStmt((Statement)s);:}
+			|		BEGIN stmts:s END	{:RESULT=new Block().setmStmts((Statements)s);:}
+			;
+expr		::=		NUMBER:n	{:RESULT = new Expression().num(Integer.valueOf((String)n),NUMBER);:}
+			|		VARIABLE:v	{:RESULT = new Expression().var((String)v,VARIABLE);:}
+			|		UMINUS expr:e1	{:RESULT = new Expression().uni((Expression)e1,UMINUS);:}			
+			|		NOT expr:e	{:RESULT = new Expression().uni((Expression)e,NOT);:}
+			|		TRUE:b	{:RESULT = new Expression().bool(Boolean.valueOf((String)b),VARIABLE);:}			
+			|		FALSE:b	{:RESULT = new Expression().bool(Boolean.valueOf((String)b),VARIABLE);:}
+			|		VARIABLE:v ASSIGN expr:e2	{:RESULT = new Expression().AssignExpr((String)v,(Expression)e2,ASSIGN);:}
+			|		expr:e1 PLUS expr:e2	{:RESULT = new Expression().setExpr((Expression)e1,(Expression)e2,PLUS);:}
+			|		expr:e1 MINUS expr:e2	{:RESULT = new Expression().setExpr((Expression)e1,(Expression)e2,MINUS);:}
+			|		expr:e1 MOD expr:e2	{:RESULT = new Expression().setExpr((Expression)e1,(Expression)e2,MOD);:}
+			|		expr:e1 GT expr:e2	{:RESULT = new Expression().setExpr((Expression)e1,(Expression)e2,GT);:}
+			|		expr:e1 LT expr:e2	{:RESULT = new Expression().setExpr((Expression)e1,(Expression)e2,LT);:}
+			|		expr:e1 GE expr:e2	{:RESULT = new Expression().setExpr((Expression)e1,(Expression)e2,GE);:}
+			|		expr:e1 LE expr:e2	{:RESULT = new Expression().setExpr((Expression)e1,(Expression)e2,LE);:}
+			|		expr:e1 EE expr:e2	{:RESULT = new Expression().setExpr((Expression)e1,(Expression)e2,EE);:}
+			|		expr:e1 NE expr:e2	{:RESULT = new Expression().setExpr((Expression)e1,(Expression)e2,NE);:}
+			|		expr:e1 AND expr:e2	{:RESULT = new Expression().setExpr((Expression)e1,(Expression)e2,AND);:}
+			|		expr:e1 OR expr:e2	{:RESULT = new Expression().setExpr((Expression)e1,(Expression)e2,OR);:}
+			|		expr:e1 TIMES expr:e2	{:RESULT = new Expression().setExpr((Expression)e1,(Expression)e2,TIMES);:}
+			|		expr:e1 DIVIDE expr:e2 {:RESULT = new Expression().setExpr((Expression)e1,(Expression)e2,DIVIDE);:}
+			|		LPAREN expr:e1	RPAREN {:RESULT = new Expression().uni((Expression)e1,LPAREN);:}
+			;
